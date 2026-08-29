@@ -1,17 +1,18 @@
 import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Category, CATEGORY_OPTIONS } from '@/enums/category.enum';
+import { Category, CategoryOption, CREATION_CATEGORY_OPTIONS } from '@/enums/category.enum';
 
 export interface SelectFieldProps
   extends Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange'> {
   value?: Category;
   onChange?: (value: Category) => void;
+  options?: readonly CategoryOption[];
   hasError?: boolean;
 }
 
 export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>(
-  ({ className, value, onChange, hasError, ...props }, ref) => {
+  ({ className, value, onChange, options = CREATION_CATEGORY_OPTIONS, hasError, ...props }, ref) => {
     return (
       <div className="relative">
         <select
@@ -29,7 +30,7 @@ export const SelectField = React.forwardRef<HTMLSelectElement, SelectFieldProps>
           )}
           {...props}
         >
-          {CATEGORY_OPTIONS.map((option) => (
+          {options.map((option) => (
             <option
               key={option.value}
               value={option.value}

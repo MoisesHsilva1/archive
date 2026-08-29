@@ -29,12 +29,27 @@ describe('createItemSchema validation', () => {
     featured: true,
   };
 
-  it('deve validar com sucesso um payload completo e válido', () => {
+  it('deve validar com sucesso um payload completo e válido de Lugares', () => {
     const result = createItemSchema.safeParse(validData);
     expect(result.success).toBe(true);
   });
 
-  it('deve falhar se o título for menor que 2 caracteres', () => {
+  it('deve validar com sucesso um item de Fotografia com apenas imagem e sem título prévio', () => {
+    const photoData = {
+      category: Category.PHOTOS,
+      coverImage: {
+        publicId: 'archive/photos/p-1',
+        url: 'https://res.cloudinary.com/demo/image/upload/photo.jpg',
+        alt: 'Fotografia',
+        aspectRatio: '16:9',
+      },
+    };
+
+    const result = createItemSchema.safeParse(photoData);
+    expect(result.success).toBe(true);
+  });
+
+  it('deve falhar se a categoria for Lugares e o título for menor que 2 caracteres', () => {
     const result = createItemSchema.safeParse({ ...validData, title: 'A' });
     expect(result.success).toBe(false);
   });
@@ -61,6 +76,7 @@ describe('createItemSchema validation', () => {
       coverImage: {
         publicId: 'archive/places/parque-01',
         url: 'https://res.cloudinary.com/demo/image/upload/parque.jpg',
+        aspectRatio: '16:9',
       },
     };
 

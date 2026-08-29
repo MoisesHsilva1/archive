@@ -51,6 +51,23 @@ describe('media.service', () => {
     });
   });
 
+  it('deve formatar mensagem de erro recebida da API do Cloudinary', async () => {
+    const mockFile = new File(['image-bits'], 'fachada.jpg', { type: 'image/jpeg' });
+    vi.mocked(axiosClient.post).mockRejectedValueOnce({
+      response: {
+        data: {
+          error: {
+            message: 'Upload preset not found',
+          },
+        },
+      },
+    });
+
+    await expect(uploadImageToCloudinary(mockFile)).rejects.toThrow(
+      'Cloudinary: Upload preset not found'
+    );
+  });
+
   it('deve realizar upload de múltiplos arquivos em lote', async () => {
     const file1 = new File(['1'], 'f1.jpg', { type: 'image/jpeg' });
     const file2 = new File(['2'], 'f2.jpg', { type: 'image/jpeg' });

@@ -78,8 +78,10 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
     },
   });
 
+  const selectedCategory = watch('category');
+  const isPhotoMode = selectedCategory === Category.PHOTOS;
+
   const titleValue = watch('title');
-  const categoryValue = watch('category');
   const contentValue = watch('content');
   const locationValue = watch('location');
   const ratingValue = watch('rating');
@@ -121,7 +123,7 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
 
   const handleFormSubmit = async (values: CreateItemFormValues) => {
     if (!coverMedia) {
-      setImageError('A imagem de capa é obrigatória');
+      setImageError('A imagem é obrigatória');
       return;
     }
 
@@ -130,8 +132,33 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
       .map((t) => t.trim())
       .filter(Boolean);
 
+    let finalTitle = values.title;
+    let finalSlug = values.slug;
+    let finalContent = values.content;
+
+    if (isPhotoMode) {
+      const dateFormatted = new Intl.DateTimeFormat('pt-BR', {
+        day: '2-digit',
+        month: 'long',
+        year: 'numeric',
+      }).format(new Date());
+
+      if (!finalTitle || finalTitle.trim().length === 0) {
+        finalTitle = `Fotografia — ${dateFormatted}`;
+      }
+      if (!finalSlug || finalSlug.trim().length === 0) {
+        finalSlug = `fotografia-${Date.now()}`;
+      }
+      if (!finalContent) {
+        finalContent = '';
+      }
+    }
+
     const payloadValues: CreateItemFormValues = {
       ...values,
+      title: finalTitle,
+      slug: finalSlug,
+      content: finalContent,
       tags,
     };
 
@@ -148,6 +175,12 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
       // Erro tratado pelo container pai
     }
   };
+
+  const displayTitle = isPhotoMode
+    ? titleValue && titleValue.trim().length > 0
+      ? titleValue
+      : 'Fotografia'
+    : titleValue;
 
   return (
     <div className="space-y-6">
@@ -193,24 +226,7 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
           )}
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2">
-              <FormField
-                label="Título do Lugar / Experiência"
-                htmlFor="title-field"
-                required
-                error={errors.title?.message}
-              >
-                <Input
-                  id="title-field"
-                  placeholder="Ex: Cafeteria & Livraria"
-                  disabled={isLoading}
-                  hasError={Boolean(errors.title)}
-                  {...register('title', { onChange: handleTitleChange })}
-                />
-              </FormField>
-            </div>
-
-            <div>
+            <div className={isPhotoMode ? 'sm:col-span-3' : 'sm:col-span-1'}>
               <FormField
                 label="Categoria"
                 htmlFor="category-field"
@@ -232,49 +248,34 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
                 />
               </FormField>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <FormField
-              label="Localização"
-              htmlFor="location-field"
-              hint="Opcional"
-              error={errors.location?.message}
-            >
-              <Input
-                id="location-field"
-                placeholder="Ex: São Paulo, SP"
-                disabled={isLoading}
-                hasError={Boolean(errors.location)}
-                {...register('location')}
-              />
-            </FormField>
-
-            <FormField
-              label="Nota Pessoal (0 a 10)"
-              hint="Opcional"
-              error={errors.rating?.message}
-            >
-              <Controller
-                name="rating"
-                control={control}
-                render={({ field }) => (
-                  <RatingInput
-                    value={field.value}
-                    onChange={field.onChange}
+            {!isPhotoMode && (
+              <div className="sm:col-span-2">
+                <FormField
+                  label="Título do Lugar / Experiência"
+                  htmlFor="title-field"
+                  required
+                  error={errors.title?.message}
+                >
+                  <Input
+                    id="title-field"
+                    placeholder="Ex: Cafeteria & Livraria"
                     disabled={isLoading}
+                    hasError={Boolean(errors.title)}
+                    {...register('title', { onChange: handleTitleChange })}
                   />
-                )}
-              />
-            </FormField>
+                </FormField>
+              </div>
+            )}
           </div>
 
           <ImageUploader
-            label="Fotografia de Capa & Galeria"
-            hint="Mobile / Câmera suportada"
+            label={isPhotoMode ? 'Fotografia' : 'Fotografia de Capa & Galeria'}
+            hint={isPhotoMode ? 'Selecione ou capture a foto' : 'Mobile / Câmera suportada'}
             error={imageError || errors.coverImage?.publicId?.message}
             coverMedia={coverMedia}
             galleryMedia={galleryMedia}
+            allowGallery={!isPhotoMode}
             onSelectCover={handleSelectCover}
             onRemoveCover={handleRemoveCover}
             onAddGallery={(file) => addGalleryImage(file)}
@@ -282,36 +283,90 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
             disabled={isLoading}
           />
 
-          <FormField
-            label="Relato Editorial / Review"
-            htmlFor="content-field"
-            required
-            hint="Markdown suportado"
-            error={errors.content?.message}
-          >
-            <Textarea
-              id="content-field"
-              rows={6}
-              placeholder="Descreva a experiência, a atmosfera, impressões e detalhes que tornam este lugar ou conteúdo memorável..."
-              disabled={isLoading}
-              hasError={Boolean(errors.content)}
-              {...register('content')}
-            />
-          </FormField>
+          {isPhotoMode ? (
+            <FormField
+              label="Legenda / Contexto"
+              htmlFor="photo-caption-field"
+              hint="Opcional"
+              error={errors.content?.message}
+            >
+              <Input
+                id="photo-caption-field"
+                placeholder="Ex: Luz da tarde no centro da cidade (opcional)"
+                disabled={isLoading}
+                hasError={Boolean(errors.content)}
+                {...register('content')}
+              />
+            </FormField>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  label="Localização"
+                  htmlFor="location-field"
+                  hint="Opcional"
+                  error={errors.location?.message}
+                >
+                  <Input
+                    id="location-field"
+                    placeholder="Ex: São Paulo, SP"
+                    disabled={isLoading}
+                    hasError={Boolean(errors.location)}
+                    {...register('location')}
+                  />
+                </FormField>
 
-          <FormField
-            label="Tags"
-            htmlFor="tags-field"
-            hint="Separadas por vírgula"
-          >
-            <Input
-              id="tags-field"
-              placeholder="café, são paulo, leitura, arquitetura"
-              value={tagsInput}
-              disabled={isLoading}
-              onChange={(e) => setTagsInput(e.target.value)}
-            />
-          </FormField>
+                <FormField
+                  label="Nota Pessoal (0 a 10)"
+                  hint="Opcional"
+                  error={errors.rating?.message}
+                >
+                  <Controller
+                    name="rating"
+                    control={control}
+                    render={({ field }) => (
+                      <RatingInput
+                        value={field.value}
+                        onChange={field.onChange}
+                        disabled={isLoading}
+                      />
+                    )}
+                  />
+                </FormField>
+              </div>
+
+              <FormField
+                label="Relato Editorial / Review"
+                htmlFor="content-field"
+                required
+                hint="Markdown suportado"
+                error={errors.content?.message}
+              >
+                <Textarea
+                  id="content-field"
+                  rows={6}
+                  placeholder="Descreva a experiência, a atmosfera, impressões e detalhes que tornam este lugar ou conteúdo memorável..."
+                  disabled={isLoading}
+                  hasError={Boolean(errors.content)}
+                  {...register('content')}
+                />
+              </FormField>
+
+              <FormField
+                label="Tags"
+                htmlFor="tags-field"
+                hint="Separadas por vírgula"
+              >
+                <Input
+                  id="tags-field"
+                  placeholder="café, são paulo, leitura, arquitetura"
+                  value={tagsInput}
+                  disabled={isLoading}
+                  onChange={(e) => setTagsInput(e.target.value)}
+                />
+              </FormField>
+            </>
+          )}
 
           {uploadProgress !== null && (
             <div className="space-y-1.5 pt-2">
@@ -341,6 +396,8 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
                   <Spinner size="sm" />
                   <span>Publicando no Archive...</span>
                 </span>
+              ) : isPhotoMode ? (
+                'Publicar Fotografia'
               ) : (
                 'Publicar no Acervo'
               )}
@@ -354,11 +411,11 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
           }`}
         >
           <ReviewPreviewCard
-            title={titleValue}
-            category={categoryValue}
+            title={displayTitle}
+            category={selectedCategory}
             content={contentValue}
-            location={locationValue}
-            rating={ratingValue}
+            location={isPhotoMode ? undefined : locationValue}
+            rating={isPhotoMode ? undefined : ratingValue}
             coverPreviewUrl={coverMedia?.previewUrl}
           />
         </div>

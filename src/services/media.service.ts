@@ -30,37 +30,47 @@ export const uploadImageToCloudinary = async (
     formData.append('folder', options.folder);
   }
 
-  const response = await axiosClient.post<CloudinaryUploadResponse>(
-    endpoint,
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-      onUploadProgress: (progressEvent) => {
-        if (progressEvent.total && options.onProgress) {
-          const percentCompleted = Math.round(
-            (progressEvent.loaded * 100) / progressEvent.total
-          );
-          options.onProgress(percentCompleted);
-        }
-      },
+  try {
+    const response = await axiosClient.post<CloudinaryUploadResponse>(
+      endpoint,
+      formData,
+      {
+        onUploadProgress: (progressEvent) => {
+          if (progressEvent.total && options.onProgress) {
+            const percentCompleted = Math.round(
+              (progressEvent.loaded * 100) / progressEvent.total
+            );
+            options.onProgress(percentCompleted);
+          }
+        },
+      }
+    );
+
+    const data = response.data;
+
+    return {
+      publicId: data.public_id,
+      url: data.secure_url || data.url,
+      alt: options.alt || file.name,
+      aspectRatio:
+        data.width && data.height
+          ? `${data.width}:${data.height}`
+          : '16:9',
+      width: data.width,
+      height: data.height,
+    };
+  } catch (error: unknown) {
+    if (
+      typeof error === 'object' &&
+      error !== null &&
+      'response' in error &&
+      typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === 'string'
+    ) {
+      const cloudinaryMsg = (error as { response: { data: { error: { message: string } } } }).response.data.error.message;
+      throw new Error(`Cloudinary: ${cloudinaryMsg}`);
     }
-  );
-
-  const data = response.data;
-
-  return {
-    publicId: data.public_id,
-    url: data.secure_url || data.url,
-    alt: options.alt || file.name,
-    aspectRatio:
-      data.width && data.height
-        ? `${data.width}:${data.height}`
-        : '16:9',
-    width: data.width,
-    height: data.height,
-  };
+    throw error;
+  }
 };
 
 export const uploadMultipleImagesToCloudinary = async (
