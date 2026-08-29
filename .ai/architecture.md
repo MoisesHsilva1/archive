@@ -192,6 +192,11 @@ service cloud.firestore {
 - **Decisão**: Todos os testes da aplicação residem exclusivamente em `src/__tests__/` (espelhando a árvore de pastas de `src/`). Todo o código-fonte de componentes, hooks e lógica deve ser estritamente livre de comentários (inline ou JSX), mantendo-se 100% autodocumentado com nomenclatura semântica e TypeScript estrito.
 - **Consequências**: Pastas de componentes mais enxutas, sem poluição de arquivos de teste misturados à implementação, e código mais legível e autoexplicativo.
 
+### ADR-004: Estratégia Git Flow para Specs (Origem em main, PR para develop via GitHub MCP)
+- **Contexto**: Para garantir isolamento de features, rastreabilidade e integração contínua segura, é necessário um padrão de ciclo de vida de branches para cada especificação de engenharia.
+- **Decisão**: Toda nova spec/feature inicia obrigatoriamente a partir da branch `main` atualizada, no formato `feature/spec-{id}-{slug}`. Ao término do desenvolvimento e aprovação no quality gate local (`test:run`, `typecheck`, `lint`, `build`), é aberto automaticamente um Pull Request via GitHub MCP direcionado para a branch `develop`.
+- **Consequências**: Histórico limpo, branches de spec consistentes com o estado de produção, e integração segura no ambiente de staging/develop antes de qualquer release para `main`.
+
 ---
 
 ## Pontos Pendentes

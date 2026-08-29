@@ -178,17 +178,39 @@ export type CreateItemFormValues = z.infer<typeof createItemSchema>;
 
 ---
 
+## Git Flow & Automação de Pull Requests
+
+- **Origem de Novas Specs / Features**: Toda branch de desenvolvimento deve ser criada a partir da branch `main` atualizada (`git checkout main && git pull origin main && git checkout -b feature/spec-XX-nome`).
+- **Padrão de Nomenclatura de Branches**: `feature/spec-{id}-{slug}` (ex.: `feature/spec-01-landing-page`, `feature/spec-02-auth-firestore`).
+- **Destino do Pull Request**: O PR de encerramento da feature deve obrigatoriamente apontar para a branch `develop`.
+- **Automação via GitHub MCP**:
+  - Título do PR: `feat(spec-XX): <descrição concisa da spec>` seguindo Conventional Commits.
+  - Corpo do PR: Resumo das alterações, checklist de requisitos atendidos e status da validação local (baseado em `.github/pull_request_template.md`).
+- **Quality Gate Pré-PR Obrigatório**:
+  - `pnpm test:run` (100% de aprovação na suíte de testes)
+  - `pnpm typecheck` (zero erros de TypeScript)
+  - `pnpm lint` (zero erros e warnings de ESLint)
+  - `pnpm build` (build de produção íntegro)
+
+---
+
 ## Regras para IA no Projeto
 
 - **O que FAZER**:
   - Seguir rigorosamente a hierarquia Atomic Design.
   - Escrever código limpo, declarativo e 100% autodocumentado com nomes expressivos e tipagem estrita, sem nenhum comentário no código ou JSX.
   - Isolar todos os testes na pasta dedicada `src/__tests__/`, espelhando a árvore de arquivos de `src/`.
+  - Criar branches de specs a partir de `main` no formato `feature/spec-{id}-{slug}`.
+  - Validar todos os checks locais (`test:run`, `typecheck`, `lint`, `build`) antes de submeter PRs.
+  - Abrir Pull Requests apontando exclusivamente para `develop` via GitHub MCP ao concluir uma spec.
   - Implementar a experiência de criação mobile com foco em ergonomia de toque, formulários leves e preview instantâneo de fotos.
   - Salvar conteúdos no Firestore e arquivos de imagem no Cloudinary via `media.service.ts`.
   - Isolar opções estáticas e listas em `src/enums/` usando `as const`.
   - Seguir o design minimalista, monocromático e editorial de [UI.md](file:///home/moisas/projects/archive/.ai/UI.md).
 - **O que NÃO FAZER**:
+  - Não abrir PR diretamente para `main` para specs/features.
+  - Não criar branches fora do padrão `feature/spec-{id}-{slug}` ou baseadas em branches desatualizadas.
+  - Não submeter PRs sem rodar a suíte completa de testes e validações locais.
   - Não adicionar comentários explicativos, anotações de fluxo ou comentários em JSX nos componentes e código de negócio.
   - Não criar arquivos de teste `.spec.ts` / `.spec.tsx` junto aos arquivos de implementação em `src/components/` ou `src/pages/`.
   - Não utilizar `useEffect` para carregar dados que possam ser resolvidos com `use()` ou disparados em handlers de ação com `useTransition`.
