@@ -1,98 +1,126 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { axiosClient } from '@/api/axiosClient';
+import * as firestoreStorage from 'firebase/storage';
 import {
-  uploadImageToCloudinary,
-  uploadMultipleImagesToCloudinary,
+  uploadImageToStorage,
+  uploadMultipleImagesToStorage,
+  deleteImageFromStorage,
+  sanitizeFileName,
 } from '@/services/media.service';
 
-vi.mock('@/api/axiosClient', () => ({
-  axiosClient: {
-    post: vi.fn(),
-  },
+vi.mock('firebase/storage', () => ({
+  ref: vi.fn(() => ({})),
+  uploadBytesResumable: vi.fn(),
+  getDownloadURL: vi.fn(),
+  deleteObject: vi.fn(),
+  getStorage: vi.fn(() => ({})),
 }));
 
-describe('media.service', () => {
+vi.mock('@/services/firebase.service', () => ({
+  storage: {},
+  app: {},
+  auth: {},
+  db: {},
+}));
+
+describe('media.service (Firebase Storage)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('deve realizar upload de imagem para o Cloudinary e formatar resposta ItemMedia', async () => {
-    const mockFile = new File(['image-bits'], 'fachada.jpg', { type: 'image/jpeg' });
-    const mockCloudinaryResponse = {
-      data: {
-        public_id: 'archive/items/fachada-123',
-        secure_url: 'https://res.cloudinary.com/demo/image/upload/fachada-123.jpg',
-        url: 'http://res.cloudinary.com/demo/image/upload/fachada-123.jpg',
-        format: 'jpg',
-        width: 1920,
-        height: 1080,
-        bytes: 204800,
-        created_at: '2026-08-29T12:00:00Z',
-        original_filename: 'fachada',
-      },
+  it('deve sanitizar nomes de arquivos com caracteres especiais', () => {
+    expect(sanitizeFileName('Café & São Paulo (1).jpg')).toBe('cafe_sao_paulo_1_.jpg');
+    expect(sanitizeFileName('FOTO 2026.PNG')).toBe('foto_2026.png');
+  });
+
+  it('deve realizar upload de imagem para o Firebase Storage e retornar ItemMedia', async () => {
+    const mockFile = new File(['image-bytes'], 'fachada.jpg', { type: 'image/jpeg' });
+    const mockSnapshot = {
+      bytesTransferred: 100,
+      totalBytes: 100,
+      ref: {},
     };
 
-    vi.mocked(axiosClient.post).mockResolvedValueOnce(mockCloudinaryResponse);
+    const mockUploadTask = {
+      on: vi.fn((_event, progressCb, _errorCb, completeCb) => {
+        if (progressCb) progressCb(mockSnapshot);
+        if (completeCb) completeCb();
+      }),
+      snapshot: mockSnapshot,
+    };
+
+    vi.mocked(firestoreStorage.uploadBytesResumable).mockReturnValueOnce(
+      mockUploadTask as unknown as firestoreStorage.UploadTask
+    );
+    vi.mocked(firestoreStorage.getDownloadURL).mockResolvedValueOnce(
+      'https://firebasestorage.googleapis.com/v0/b/archive/o/fachada.jpg?alt=media'
+    );
 
     const onProgress = vi.fn();
-    const result = await uploadImageToCloudinary(mockFile, {
+    const result = await uploadImageToStorage(mockFile, {
       alt: 'Fachada Principal',
+      folder: 'items/places',
       onProgress,
     });
 
-    expect(axiosClient.post).toHaveBeenCalledTimes(1);
-    expect(result).toEqual({
-      publicId: 'archive/items/fachada-123',
-      url: 'https://res.cloudinary.com/demo/image/upload/fachada-123.jpg',
-      alt: 'Fachada Principal',
-      aspectRatio: '1920:1080',
-      width: 1920,
-      height: 1080,
-    });
+    expect(firestoreStorage.ref).toHaveBeenCalled();
+    expect(firestoreStorage.uploadBytesResumable).toHaveBeenCalledTimes(1);
+    expect(result.url).toBe(
+      'https://firebasestorage.googleapis.com/v0/b/archive/o/fachada.jpg?alt=media'
+    );
+    expect(result.alt).toBe('Fachada Principal');
+    expect(result.aspectRatio).toBe('16:9');
   });
 
-  it('deve formatar mensagem de erro recebida da API do Cloudinary', async () => {
-    const mockFile = new File(['image-bits'], 'fachada.jpg', { type: 'image/jpeg' });
-    vi.mocked(axiosClient.post).mockRejectedValueOnce({
-      response: {
-        data: {
-          error: {
-            message: 'Upload preset not found',
-          },
-        },
-      },
-    });
+  it('deve lidar com erro durante o upload no Firebase Storage', async () => {
+    const mockFile = new File(['image-bytes'], 'fachada.jpg', { type: 'image/jpeg' });
 
-    await expect(uploadImageToCloudinary(mockFile)).rejects.toThrow(
-      'Cloudinary: Upload preset not found'
+    const mockUploadTask = {
+      on: vi.fn((_event, _progressCb, errorCb) => {
+        if (errorCb) errorCb(new Error('Permissão negada pelo Storage Rules'));
+      }),
+    };
+
+    vi.mocked(firestoreStorage.uploadBytesResumable).mockReturnValueOnce(
+      mockUploadTask as unknown as firestoreStorage.UploadTask
+    );
+
+    await expect(uploadImageToStorage(mockFile)).rejects.toThrow(
+      'Firebase Storage: Permissão negada pelo Storage Rules'
     );
   });
 
-  it('deve realizar upload de múltiplos arquivos em lote', async () => {
+  it('deve realizar upload de múltiplos arquivos para o Storage', async () => {
     const file1 = new File(['1'], 'f1.jpg', { type: 'image/jpeg' });
     const file2 = new File(['2'], 'f2.jpg', { type: 'image/jpeg' });
 
-    vi.mocked(axiosClient.post)
-      .mockResolvedValueOnce({
-        data: {
-          public_id: 'img-1',
-          secure_url: 'https://cdn.com/1.jpg',
-          width: 800,
-          height: 600,
-        },
-      })
-      .mockResolvedValueOnce({
-        data: {
-          public_id: 'img-2',
-          secure_url: 'https://cdn.com/2.jpg',
-          width: 800,
-          height: 600,
-        },
-      });
+    const createMockTask = () => ({
+      on: vi.fn((_event, _progressCb, _errorCb, completeCb) => {
+        if (completeCb) completeCb();
+      }),
+      snapshot: { ref: {} },
+    });
 
-    const results = await uploadMultipleImagesToCloudinary([file1, file2]);
+    vi.mocked(firestoreStorage.uploadBytesResumable)
+      .mockReturnValueOnce(createMockTask() as unknown as firestoreStorage.UploadTask)
+      .mockReturnValueOnce(createMockTask() as unknown as firestoreStorage.UploadTask);
+
+    vi.mocked(firestoreStorage.getDownloadURL)
+      .mockResolvedValueOnce('https://storage.com/f1.jpg')
+      .mockResolvedValueOnce('https://storage.com/f2.jpg');
+
+    const results = await uploadMultipleImagesToStorage([file1, file2], {
+      folder: 'items/places/gallery',
+    });
+
     expect(results).toHaveLength(2);
-    expect(results[0]?.publicId).toBe('img-1');
-    expect(results[1]?.publicId).toBe('img-2');
+    expect(results[0]?.url).toBe('https://storage.com/f1.jpg');
+    expect(results[1]?.url).toBe('https://storage.com/f2.jpg');
+  });
+
+  it('deve excluir imagem com deleteImageFromStorage', async () => {
+    vi.mocked(firestoreStorage.deleteObject).mockResolvedValueOnce();
+
+    await deleteImageFromStorage('items/places/sample.jpg');
+    expect(firestoreStorage.deleteObject).toHaveBeenCalledTimes(1);
   });
 });

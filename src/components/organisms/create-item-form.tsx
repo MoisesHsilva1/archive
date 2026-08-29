@@ -371,7 +371,7 @@ export const CreateItemForm: React.FC<CreateItemFormProps> = ({
           {uploadProgress !== null && (
             <div className="space-y-1.5 pt-2">
               <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-text-secondary">Enviando mídia ao Cloudinary</span>
+                <span className="text-text-secondary">Enviando mídia ao Storage</span>
                 <span className="text-text-primary">{uploadProgress}%</span>
               </div>
               <div className="w-full h-1 bg-background-surface rounded-full overflow-hidden">

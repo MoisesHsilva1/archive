@@ -7,6 +7,8 @@ import { Category } from '@/enums/category.enum';
 import { AuthUser } from '@/types/domain/auth.types';
 
 vi.mock('@/services/media.service', () => ({
+  uploadImageToStorage: vi.fn(),
+  uploadMultipleImagesToStorage: vi.fn(),
   uploadImageToCloudinary: vi.fn(),
   uploadMultipleImagesToCloudinary: vi.fn(),
 }));
@@ -35,10 +37,10 @@ describe('useReviewMutation hook', () => {
     expect(result.current.successItem).toBeNull();
   });
 
-  it('deve orquestrar upload de imagens e publicação no Firestore com sucesso', async () => {
+  it('deve orquestrar upload de imagens para o Storage e publicação no Firestore com sucesso', async () => {
     const mockCoverMedia = {
-      publicId: 'cover-id',
-      url: 'https://cdn.com/cover.jpg',
+      publicId: 'items/places/cover-id.jpg',
+      url: 'https://storage.googleapis.com/archive/cover.jpg',
       alt: 'Capa',
       aspectRatio: '16:9',
     };
@@ -59,7 +61,7 @@ describe('useReviewMutation hook', () => {
       updatedAt: '2026-08-29T12:00:00Z',
     };
 
-    vi.mocked(mediaService.uploadImageToCloudinary).mockResolvedValueOnce(
+    vi.mocked(mediaService.uploadImageToStorage).mockResolvedValueOnce(
       mockCoverMedia
     );
     vi.mocked(reviewService.publishItemToFirestore).mockResolvedValueOnce(
@@ -93,15 +95,15 @@ describe('useReviewMutation hook', () => {
       publishedItem = await result.current.publishReview(submitData, mockAuthor);
     });
 
-    expect(mediaService.uploadImageToCloudinary).toHaveBeenCalledTimes(1);
+    expect(mediaService.uploadImageToStorage).toHaveBeenCalledTimes(1);
     expect(reviewService.publishItemToFirestore).toHaveBeenCalledTimes(1);
     expect(publishedItem).toEqual(mockSavedDoc);
     expect(result.current.successItem).toEqual(mockSavedDoc);
   });
 
-  it('deve capturar erro se o upload para o Cloudinary falhar', async () => {
-    vi.mocked(mediaService.uploadImageToCloudinary).mockRejectedValueOnce(
-      new Error('Erro de rede no upload')
+  it('deve capturar erro se o upload para o Storage falhar', async () => {
+    vi.mocked(mediaService.uploadImageToStorage).mockRejectedValueOnce(
+      new Error('Erro de permissão no Firebase Storage')
     );
 
     const { result } = renderHook(() => useReviewMutation());
@@ -134,7 +136,7 @@ describe('useReviewMutation hook', () => {
       }
     });
 
-    expect(result.current.error).toBe('Erro de rede no upload');
+    expect(result.current.error).toBe('Erro de permissão no Firebase Storage');
     expect(result.current.isSubmitting).toBe(false);
   });
 });

@@ -142,7 +142,7 @@ O objetivo não é listar tecnologias ou transformar a seção em um currículo 
 
 <!-- Status real do projeto: se é greenfield, protótipo, MVP, legado em manutenção ou produção. -->
 - **Estágio de Maturação**: Arquitetura v0 definida e aprovada — Pronto para inicialização do projeto (`/home/moisas/projects/archive`).
-- **Abordagem Técnica**: Jamstack / Single Page Application estático (Vite + React + TypeScript) com pipeline de Markdown local e Cloudinary para mídia.
+- **Abordagem Técnica**: Jamstack / Single Page Application estático (Vite + React + TypeScript) com persistência NoSQL em tempo real no Firestore e Firebase Storage para mídia.
 - **Contexto SDD**: Documentação persistente e diretrizes de design estruturadas em `.ai/` (`context.md`, `architecture.md`, `design.md`, `UI.md`).
 
 ---
@@ -151,8 +151,8 @@ O objetivo não é listar tecnologias ou transformar a seção em um currículo 
 
 <!-- Decisões de negócio e de produto já consolidadas e acordadas. -->
 - **Frontend-First sem Backend proprietário na v0**: Foco total em entrega rápida de valor, experiência visual editorial e custo zero de infraestrutura.
-- **Pipeline de Conteúdo via Markdown**: Reviews e artigos armazenados como arquivos `.md` versionados no Git com schema Zod estrito.
-- **Gestão de Imagens via Cloudinary**: Armazenamento e CDN de mídia com transformações dinâmicas e hooks customizados no frontend.
+- **Persistência em Tempo Real via Firebase Firestore**: Reviews, fotos e indicações armazenados diretamente no Firestore com schema Zod estrito.
+- **Gestão de Imagens via Firebase Storage**: Armazenamento seguro e unificado de fotos integrado ao Firebase Auth.
 - **Estética Monocromática e Editorial**: Fidelidade ao [UI.md](file:///home/moisas/projects/archive/.ai/UI.md) com Tailwind CSS e primitivos acessíveis do Radix UI.
 - **Hospedagem em Edge CDN**: Deploy contínuo via Vercel / Cloudflare Pages.
 

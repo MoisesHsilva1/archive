@@ -3,8 +3,8 @@ import { ItemDocument, ItemCreatePayload, ItemMedia } from '@/types/domain/item.
 import { AuthUser } from '@/types/domain/auth.types';
 import { CreateItemFormSubmitData } from '@/components/organisms/create-item-form';
 import {
-  uploadImageToCloudinary,
-  uploadMultipleImagesToCloudinary,
+  uploadImageToStorage,
+  uploadMultipleImagesToStorage,
 } from '@/services/media.service';
 import { publishItemToFirestore } from '@/services/review.service';
 
@@ -48,13 +48,15 @@ export const useReviewMutation = (): UseReviewMutationReturn => {
       setIsUploading(true);
       setUploadProgress(10);
 
+      const targetFolder = `items/${data.values.category}`;
+
       try {
         setUploadProgress(25);
-        const coverMedia: ItemMedia = await uploadImageToCloudinary(
+        const coverMedia: ItemMedia = await uploadImageToStorage(
           data.coverFile,
           {
             alt: data.values.title,
-            folder: 'archive/items',
+            folder: targetFolder,
             onProgress: (pct) => setUploadProgress(Math.min(60, 20 + Math.round(pct * 0.4))),
           }
         );
@@ -62,10 +64,10 @@ export const useReviewMutation = (): UseReviewMutationReturn => {
         let galleryMedia: ItemMedia[] = [];
         if (data.galleryFiles.length > 0) {
           setUploadProgress(65);
-          galleryMedia = await uploadMultipleImagesToCloudinary(
+          galleryMedia = await uploadMultipleImagesToStorage(
             data.galleryFiles,
             {
-              folder: 'archive/items/gallery',
+              folder: `${targetFolder}/gallery`,
               onProgress: (pct) => setUploadProgress(Math.min(90, 60 + Math.round(pct * 0.3))),
             }
           );
@@ -113,7 +115,7 @@ export const useReviewMutation = (): UseReviewMutationReturn => {
         const message =
           err instanceof Error
             ? err.message
-            : 'Erro ao realizar upload de imagens para o Cloudinary';
+            : 'Erro ao realizar upload de imagens para o Firebase Storage';
         setError(message);
         setIsUploading(false);
         setUploadProgress(null);

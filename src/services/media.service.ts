@@ -1,7 +1,11 @@
-import { axiosClient } from '@/api/axiosClient';
-import { ENDPOINTS } from '@/api/endpoints';
+import {
+  ref,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage';
+import { storage } from '@/services/firebase.service';
 import { ItemMedia } from '@/types/domain/item.types';
-import { CloudinaryUploadResponse } from '@/types/api/cloudinary.dto';
 
 export interface UploadOptions {
   alt?: string;
@@ -9,71 +13,61 @@ export interface UploadOptions {
   onProgress?: (percent: number) => void;
 }
 
-export const getCloudinaryConfig = () => {
-  return {
-    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo',
-    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'archive_dev_preset',
-  };
+export const sanitizeFileName = (fileName: string): string => {
+  return fileName
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9.-]/g, '_')
+    .replace(/_+/g, '_');
 };
 
-export const uploadImageToCloudinary = async (
+export const uploadImageToStorage = (
   file: File,
   options: UploadOptions = {}
 ): Promise<ItemMedia> => {
-  const { cloudName, uploadPreset } = getCloudinaryConfig();
-  const endpoint = ENDPOINTS.CLOUDINARY_UPLOAD(cloudName);
+  return new Promise((resolve, reject) => {
+    const folder = options.folder || 'items';
+    const cleanName = sanitizeFileName(file.name);
+    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    const storagePath = `${folder}/${uniqueSuffix}-${cleanName}`;
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', uploadPreset);
-  if (options.folder) {
-    formData.append('folder', options.folder);
-  }
+    const storageRef = ref(storage, storagePath);
+    const uploadTask = uploadBytesResumable(storageRef, file, {
+      contentType: file.type,
+    });
 
-  try {
-    const response = await axiosClient.post<CloudinaryUploadResponse>(
-      endpoint,
-      formData,
-      {
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total && options.onProgress) {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            options.onProgress(percentCompleted);
-          }
-        },
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        if (snapshot.totalBytes > 0 && options.onProgress) {
+          const percent = Math.round(
+            (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          );
+          options.onProgress(percent);
+        }
+      },
+      (error) => {
+        reject(new Error(`Firebase Storage: ${error.message}`));
+      },
+      async () => {
+        try {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve({
+            publicId: storagePath,
+            url: downloadUrl,
+            alt: options.alt || cleanName,
+            aspectRatio: '16:9',
+          });
+        } catch (err) {
+          reject(err);
+        }
       }
     );
-
-    const data = response.data;
-
-    return {
-      publicId: data.public_id,
-      url: data.secure_url || data.url,
-      alt: options.alt || file.name,
-      aspectRatio:
-        data.width && data.height
-          ? `${data.width}:${data.height}`
-          : '16:9',
-      width: data.width,
-      height: data.height,
-    };
-  } catch (error: unknown) {
-    if (
-      typeof error === 'object' &&
-      error !== null &&
-      'response' in error &&
-      typeof (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message === 'string'
-    ) {
-      const cloudinaryMsg = (error as { response: { data: { error: { message: string } } } }).response.data.error.message;
-      throw new Error(`Cloudinary: ${cloudinaryMsg}`);
-    }
-    throw error;
-  }
+  });
 };
 
-export const uploadMultipleImagesToCloudinary = async (
+export const uploadMultipleImagesToStorage = async (
   files: File[],
   options: UploadOptions = {}
 ): Promise<ItemMedia[]> => {
@@ -81,7 +75,7 @@ export const uploadMultipleImagesToCloudinary = async (
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]!;
-    const media = await uploadImageToCloudinary(file, {
+    const media = await uploadImageToStorage(file, {
       ...options,
       onProgress: (percent) => {
         if (options.onProgress) {
@@ -97,3 +91,11 @@ export const uploadMultipleImagesToCloudinary = async (
 
   return results;
 };
+
+export const deleteImageFromStorage = async (storagePath: string): Promise<void> => {
+  const storageRef = ref(storage, storagePath);
+  await deleteObject(storageRef);
+};
+
+export const uploadImageToCloudinary = uploadImageToStorage;
+export const uploadMultipleImagesToCloudinary = uploadMultipleImagesToStorage;
