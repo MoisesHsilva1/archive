@@ -3,7 +3,8 @@ import { X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { IconButton } from '@/components/atoms/icon-button';
 import { NavDrawerItem } from '@/components/molecules/nav-drawer-item';
-import { NAVIGATION_ITEMS } from '@/constants/navigation.constants';
+import { NAVIGATION_ITEMS, CREATE_NAVIGATION_ITEM } from '@/constants/navigation.constants';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface NavigationDrawerProps {
   isOpen: boolean;
@@ -12,6 +13,7 @@ export interface NavigationDrawerProps {
 
 export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
@@ -39,6 +41,10 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({ isOpen, onCl
   if (!isOpen) {
     return null;
   }
+
+  const items = isAuthenticated
+    ? [...NAVIGATION_ITEMS, CREATE_NAVIGATION_ITEM]
+    : NAVIGATION_ITEMS;
 
   return (
     <div
@@ -73,11 +79,13 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({ isOpen, onCl
         </div>
 
         <nav className="flex-1 py-8 sm:py-12 space-y-1" aria-label="Rotas do Archive">
-          {NAVIGATION_ITEMS.map((item) => {
+          {items.map((item) => {
             const isActive =
               item.href === '/'
                 ? location.pathname === '/' && !location.hash
-                : location.hash === item.href.replace('/', '');
+                : item.href.startsWith('/#')
+                  ? location.hash === item.href.replace('/', '')
+                  : location.pathname === item.href;
 
             return (
               <NavDrawerItem
@@ -90,8 +98,11 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({ isOpen, onCl
           })}
         </nav>
 
-        <div className="pt-6 border-t border-border flex items-center text-xs font-mono text-text-muted">
+        <div className="pt-6 border-t border-border flex items-center justify-between text-xs font-mono text-text-muted">
           <span>ARCHIVE // v0</span>
+          {isAuthenticated && (
+            <span className="text-[10px] text-neutral-400">MODO PROPRIETÁRIO</span>
+          )}
         </div>
       </aside>
     </div>

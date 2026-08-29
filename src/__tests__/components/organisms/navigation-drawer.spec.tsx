@@ -3,6 +3,18 @@ import { BrowserRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NavigationDrawer } from '@/components/organisms/navigation-drawer';
 import { NAVIGATION_ITEMS } from '@/constants/navigation.constants';
+import * as useAuthModule from '@/hooks/useAuth';
+
+vi.mock('@/hooks/useAuth', () => ({
+  useAuth: vi.fn(() => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    error: null,
+    login: vi.fn(),
+    logout: vi.fn(),
+  })),
+}));
 
 describe('NavigationDrawer Organism (RF-003, RF-004, RF-005, RF-007, US-01, US-02, US-04)', () => {
   const handleClose = vi.fn();
@@ -34,6 +46,27 @@ describe('NavigationDrawer Organism (RF-003, RF-004, RF-005, RF-007, US-01, US-0
       expect(screen.getByText(item.label)).toBeInTheDocument();
       expect(screen.getByText(item.index)).toBeInTheDocument();
     });
+  });
+
+  it('deve exibir o link discreto Criar Experiência quando autenticado', () => {
+    vi.mocked(useAuthModule.useAuth).mockReturnValueOnce({
+      user: {
+        uid: 'owner-1',
+        email: 'owner@archive.io',
+        displayName: 'Moisés',
+        photoURL: null,
+      },
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+      login: vi.fn(),
+      logout: vi.fn(),
+    });
+
+    renderDrawer(true);
+
+    expect(screen.getByText('Criar Experiência')).toBeInTheDocument();
+    expect(screen.getByText('MODO PROPRIETÁRIO')).toBeInTheDocument();
   });
 
   it('deve chamar onClose ao clicar no botão de fechar (X)', () => {

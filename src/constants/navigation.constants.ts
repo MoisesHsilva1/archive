@@ -52,3 +52,11 @@ export const NAVIGATION_ITEMS: readonly NavigationItem[] = [
     description: 'Repositório de código e projetos de software.',
   },
 ] as const;
+
+export const CREATE_NAVIGATION_ITEM: NavigationItem = {
+  id: 'create',
+  index: '07',
+  label: 'Criar Experiência',
+  href: '/create',
+  description: 'Área do proprietário para publicação de reviews e lugares.',
+} as const;

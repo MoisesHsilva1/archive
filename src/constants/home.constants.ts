@@ -13,7 +13,7 @@ export const HOME_CONTENT = {
     author: 'Moisas',
     artPath: '/assets/art/cosmic-landscape.png',
     artAlt: 'Ilustração em nanquim de paisagem cósmica e céu estrelado',
-    artCaption: 'ARTE 01 // HORIZONTE EM NANQUIM',
+    artCaption: '',
   },
   about: {
     title: 'Sobre',
